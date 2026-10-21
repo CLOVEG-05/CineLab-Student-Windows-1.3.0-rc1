@@ -1,0 +1,62 @@
+:root,html.dark{
+  color-scheme:dark;
+  /* ============ 红黑影院主题色板 ============ */
+  --bg:#0a0606;                              /* 近黑（带暖红） */
+  --bg-2:#120a0a;                            /* 深黑辅助 */
+  --surface:#160d0d;                         /* 深红炭面板 */
+  --surface-2:#1d1212;                       /* 面板高光 */
+  --text:#f4ecea;                            /* 象牙白正文 */
+  --muted:#a2908c;                           /* 暖灰次要文字 */
+  --border:#2c1a1a;                          /* 红棕描边 */
+  --border-soft:rgba(255,235,235,.10);       /* 暖白发丝边框 */
+  --accent:#e11d2a;                          /* 高级红（克制醒目） */
+  --accent-d:#9e1320;                        /* 深红（渐变/阴影） */
+  --accent-tint:#e11d2a14;                   /* 红点缀底 */
+  --ink:#1a0608;                             /* 红底深字 */
+  --danger:#e5736b;
+  --glass:rgba(20,12,12,.6);                 /* 磨砂玻璃底 */
+  --glass-brd:rgba(255,235,235,.09);         /* 玻璃发丝边 */
+  --glow:rgba(225,29,42,.55);                /* 红色辉光 */
+  --font-display:"Noto Serif SC",Georgia,"Songti SC",serif; /* 电影感衬线标题 */
+  /* ============ Element Plus 主色（红） ============ */
+  --el-color-primary:#e11d2a;
+  --el-color-primary-light-3:#ef4753;
+  --el-color-primary-light-5:#c2303b;
+  --el-color-primary-light-7:#7a1b22;
+  --el-color-primary-light-8:#5a141a;
+  --el-color-primary-light-9:#2a0d10;
+  --el-color-primary-dark-2:#9e1320;
+  --el-bg-color:#160d0d;
+  --el-bg-color-page:#0a0606;
+  --el-bg-color-overlay:#1d1212;
+  --el-fill-color-blank:#160d0d;
+  --el-fill-color:#221616;
+  --el-fill-color-light:#221616;
+  --el-fill-color-lighter:#221616;
+  --el-text-color-primary:#f4ecea;
+  --el-text-color-regular:#c9bdba;
+  --el-text-color-secondary:#a2908c;
+  --el-text-color-placeholder:#8d7d79;
+  --el-border-color:#3a2424;
+  --el-border-color-light:#2c1a1a;
+  --el-border-color-lighter:#2c1a1a;
+  --el-mask-color:#0009;
+  --el-color-danger:#e5736b;
+  --el-font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --el-border-radius-base:8px;
+  --el-disabled-text-color:#897a76;
+}
+/* 主按钮文字统一为白，确保红底可读性 */
+.el-button--primary{--el-button-text-color:#fff;--el-button-hover-text-color:#fff;--el-button-active-text-color:#fff;--el-button-disabled-text-color:#fff}
+.el-input,.el-select,.el-input-number{--el-component-size-large:44px}
+.el-input__wrapper,.el-select__wrapper{min-height:44px}
+.el-form-item__label{color:var(--text)!important;font-size:13px}
+.el-tabs__item.is-active,.el-tabs__item:hover{color:var(--accent)}
+.el-tabs__active-bar{background:var(--accent)}
+.el-pagination.is-background .el-pager li.is-active{color:#fff;background:var(--accent)}
+.el-table{--el-table-header-bg-color:#1a1010;--el-table-tr-bg-color:var(--surface);--el-table-row-hover-bg-color:#251717;--el-table-border-color:var(--border);--el-table-header-text-color:var(--muted);font-size:13px}
+.el-table .cell{padding-block:7px}
+.el-input-number{width:160px}
+.el-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.el-message{max-width:calc(100vw - 32px)}
+.el-tag{--el-tag-text-color:var(--muted);--el-tag-border-color:var(--border);--el-tag-bg-color:var(--surface)}

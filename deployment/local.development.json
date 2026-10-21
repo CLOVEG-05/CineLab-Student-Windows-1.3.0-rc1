@@ -1,0 +1,17 @@
+{
+    "schema":  "cinelab-development-v1",
+    "project":  "cinelab",
+    "engineId":  "80f1510d-6ba7-44ed-86b3-ffce5c62e172",
+    "images":  [
+                   {
+                       "service":  "api",
+                       "reference":  "cinelab-student/cinelab-api:f6b5c750fed0455f8495db2ffcba083b",
+                       "id":  "sha256:6d9b4bdcabf121f911c585b91caba22550d59940209a39e2f7c08b3f9f739aaa"
+                   },
+                   {
+                       "service":  "web",
+                       "reference":  "cinelab-student/cinelab-web:823d1fe5d61d4413ba33ef78d2ed26f1",
+                       "id":  "sha256:ff1b3752b59db3fd3f465cf1538f826a19b13924a53c6589d623b2edf737f78c"
+                   }
+               ]
+}

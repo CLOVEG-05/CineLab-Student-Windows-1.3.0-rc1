@@ -4,9 +4,10 @@
 - 把每部电影表示为"评过它的用户集合"（来自真实评分，ml+app）。
 - 电影相似度 = 用户集合的余弦相似度：
       sim(i, c) = |U_i ∩ U_c| / sqrt(|U_i| * |U_c|)
-- 用户对候选 c 的打分 = 其每条历史评分按分值加权后对 c 的相似度累加：
-      score(c) = Σ_{i ∈ 用户已评分} (rating_i / 5) * sim(i, c)
-  评分越高权重越大，因此低分电影对候选的拉动更弱（利用评分历史的方式）。
+- 用户对候选 c 的打分 = 其喜好画像中的电影对 c 的相似度累加：
+      score(c) = Σ_{i ∈ 用户画像} w_i * sim(i, c)
+  画像 = 评分 ≥ 4.5 的"喜欢"电影（二值权重）；若用户没有任何 ≥4.5 评分，
+  则回退为全部已评分电影按 rating/5 加权（保证低评分用户也有可用画像）。
 - 排除用户已评分的全部电影；分数降序、同分 movie_id 升序；最多 limit 部。
 
 工程实现：用 scipy 一次性构建物品-物品共现矩阵 S = UᵀU（U 为用户-物品指示矩阵），
@@ -34,9 +35,12 @@ import recommender.business as business
 
 MODEL_VERSION = "itemcf-cosine-v1"
 
-_ITEMCF_ARTIFACT = {"similarity": "cosine-of-user-sets", "weighting": "rating/5",
+_ITEMCF_ARTIFACT = {"similarity": "cosine-of-user-sets",
+                    "weighting": "binary-liked(rating>=4.5, fallback rating/5)",
                     "inputs": ["history_ratings", "account_ratings"]}
-_ITEMCF_PARAMS = {"similarity": "cosine", "weighting": "rating/5", "exclude_rated": True,
+_ITEMCF_PARAMS = {"similarity": "cosine",
+                  "weighting": "binary-liked(rating>=4.5, fallback rating/5)",
+                  "exclude_rated": True,
                   "tie_break": "movie_id-asc", "max_results": 10}
 MODEL_MANIFEST_PATH, EVAL_MANIFEST_PATH = make_manifests(
     "itemcf", MODEL_VERSION, "itemcf-params.json", _ITEMCF_ARTIFACT, _ITEMCF_PARAMS)
@@ -140,8 +144,11 @@ class ItemCfRecommender:
     def recommend(self, request: RecommendationRequest) -> RecommendationResult:
         history = business.read_history(request)
         rated_ids = frozenset(fb.movie_id for fb in history.ratings)
-        # 权重 = 评分/5：评分越高，与其相似的电影获得的加分越大。
-        weights = {fb.movie_id: float(fb.rating) / 5.0 for fb in history.ratings}
+        # 喜好画像：评分 >= 4.5 的电影（二值权重）；无高评分时回退 rating/5。
+        # 业务库返回的 rating 可能是字符串，统一转 float 比较。
+        weights = {fb.movie_id: 1.0 for fb in history.ratings if float(fb.rating) >= 4.5}
+        if not weights:
+            weights = {fb.movie_id: float(fb.rating) / 5.0 for fb in history.ratings}
         return build_recommendation(request, weights, rated_ids)
 
 

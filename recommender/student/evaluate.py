@@ -134,10 +134,12 @@ def main() -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     summary = {}
+    coverage_by_name = {}
     for name in ["popular", "content", "itemcf", "als"]:
         print(f"\n=== {name} ===")
         res = run_algorithm(name, args.partition, data, max_users=args.max_users)
         summary[name] = res["eval_result"]
+        coverage_by_name[name] = res["coverage"]
         (out_dir / f"{name}-{args.partition}.jsonl").write_text(
             "\n".join(json.dumps(p, ensure_ascii=False) for p in res["predictions"]), encoding="utf-8")
         er_path = out_dir / f"{name}-{args.partition}-result.json"
@@ -150,9 +152,9 @@ def main() -> int:
               f"Coverage={res['coverage']:.4f}  用户={res['users']}")
     print("\n--- 对比表 ---")
     print(f"{'算法':<10}{'P@10':>10}{'R@10':>10}{'Coverage':>12}")
-    for name, res in summary.items():
-        er = res["eval_result"]
-        print(f"{name:<10}{er['precision_at_10']:>10.4f}{er['recall_at_10']:>10.4f}{res['coverage']:>12.4f}")
+    for name, er in summary.items():
+        print(f"{name:<10}{er['precision_at_10']:>10.4f}{er['recall_at_10']:>10.4f}"
+              f"{coverage_by_name[name]:>12.4f}")
     (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 

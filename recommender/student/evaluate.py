@@ -23,7 +23,7 @@ from recommender.data import DATASET, SPLIT, FrozenData, sha256
 import recommender.evaluation as ev
 
 from recommender.student import ratings, eval_data
-from recommender.student import popular, content, itemcf, als  # 实验三接入 als
+from recommender.student import popular, content, itemcf, als, rrf  # 实验三 als；实验四 rrf
 
 # 各算法的 evaluation 清单路径（供 check_model 切换为评价模式）。
 EVAL_PATHS = {
@@ -31,6 +31,7 @@ EVAL_PATHS = {
     Algorithm.content: content.EVAL_MANIFEST_PATH,
     Algorithm.itemcf: itemcf.EVAL_MANIFEST_PATH,
     Algorithm.als: als.EVAL_MANIFEST_PATH,
+    Algorithm.rrf: rrf.EVAL_MANIFEST_PATH,
 }
 
 
@@ -57,9 +58,15 @@ def run_algorithm(algorithm_name: str, partition: str, data: FrozenData,
     users = sorted(ev.eligible_users(data, partition), key=int)
     if max_users is not None:
         users = users[:max_users]
-    provider = PROVIDERS[alg]
-    orig_model_path = provider.model_manifest_path
-    provider.model_manifest_path = str(EVAL_PATHS[alg])
+    # rrf 融合多路，需把自身及所有组件 Provider 一并切到 evaluation 清单。
+    if alg == Algorithm.rrf:
+        switch = [(PROVIDERS[alg], EVAL_PATHS[alg])] + [
+            (PROVIDERS[c], EVAL_PATHS[c]) for c in rrf.COMPONENTS]
+    else:
+        switch = [(PROVIDERS[alg], EVAL_PATHS[alg])]
+    originals = [(p, p.model_manifest_path) for p, _ in switch]
+    for p, path in switch:
+        p.model_manifest_path = str(path)
 
     # 离线拟合：popular/itemcf 改用 train.csv 统计与共现；content 用 train 历史。
     prev_stats = ratings.fetch_stats
@@ -95,7 +102,8 @@ def run_algorithm(algorithm_name: str, partition: str, data: FrozenData,
         ratings.load_cooccurrence = prev_cooc
         business.read_history = prev_history
         popular.popular_ranking.cache_clear()
-        provider.model_manifest_path = orig_model_path
+        for p, orig in originals:
+            p.model_manifest_path = orig
 
     precision_mean = sum(precisions) / len(precisions) if precisions else 0.0
     recall_mean = sum(recalls) / len(recalls) if recalls else 0.0
@@ -125,6 +133,8 @@ def main() -> int:
     ap.add_argument("--partition", default="validation")
     ap.add_argument("--max-users", type=int, default=None)
     ap.add_argument("--out", default="recommender/student/eval_results")
+    ap.add_argument("--algorithms", default="popular,content,itemcf,als",
+                    help="逗号分隔，如 popular,itemcf,als,rrf")
     args = ap.parse_args()
 
     data = FrozenData()
@@ -135,7 +145,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     summary = {}
     coverage_by_name = {}
-    for name in ["popular", "content", "itemcf", "als"]:
+    for name in [n.strip() for n in args.algorithms.split(",") if n.strip()]:
         print(f"\n=== {name} ===")
         res = run_algorithm(name, args.partition, data, max_users=args.max_users)
         summary[name] = res["eval_result"]

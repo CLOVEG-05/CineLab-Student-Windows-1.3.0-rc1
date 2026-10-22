@@ -17,7 +17,9 @@
 |---|---|---|
 | 实验一 | `content` 基于内容推荐（genres multi-hot + 余弦相似度） | ✅ 已接入 |
 | 实验二 | `popular` 热门推荐 / `cold_start` 冷启动 / `itemcf` 物品协同过滤 | ✅ 已接入 |
-| 后续 | `als`（Spark ALS）、离线评价 | ⬜ 待实现 |
+| 实验三 | `als` 矩阵分解（numpy ALS）+ 四算法离线评价（P@10/R@10） | ✅ 已接入 |
+| 实验四 | `rrf` 加权 RRF 多算法融合（S1） | ✅ 已接入 |
+| 实验五 | `S3` Kafka 事件驱动实时推荐 | ⬜ 待实现 |
 
 算法注册状态可随时通过 `GET /api/v1/experiments/algorithms` 查看。
 
@@ -36,10 +38,15 @@ recommender/               # 推荐算法包（课程契约 + 学生实现）
     popular.py             #     实验二：热门推荐（popular-bayesian-v1）
     cold_start.py          #     实验二：冷启动（cold-start-popular-v1，热门兜底）
     itemcf.py              #     实验二：物品协同过滤（itemcf-cosine-v1）
-    ratings.py             #     共用：业务库评分只读加载（聚合统计 / 共现结构）
+    als.py                 #     实验三：矩阵分解 ALS（numpy 交替最小二乘，als-matrix-factorization-v1）
+    rrf.py                 #     实验四：加权 RRF 多算法融合（rrf-rank-fusion-v1）
+    ratings.py             #     共用：业务库评分只读加载（聚合统计 / 共现结构 / ALS 全量三元组）
     manifest_util.py       #     共用：运行时生成合规 ModelManifest 与工件
+    eval_data.py           #     实验三：评价数据加载（train/validation 冻结文件）
+    evaluate.py            #     实验三：离线评价脚本（P@10/R@10，--algorithms 可选）
     test_content.py        #     实验一单元测试（4 项）
     test_experiment2.py    #     实验二单元测试（6 项）
+    test_experiment4.py    #     实验四 S1 测试（RRF 契约/公式/来源追溯/个性化）
 backend/                   # FastAPI 服务（课程提供，未改动业务接口格式）
 frontend/                  # Vue 3 + Vite（红黑侧栏主题 + 推荐实验室页面）
 deployment/                # Dockerfile / build.ps1 / compose 运行脚本（课程提供）

@@ -5,13 +5,13 @@
     "images":  [
                    {
                        "service":  "api",
-                       "reference":  "cinelab-student/cinelab-api:85a90f67fdf44123b7526985361e9587",
-                       "id":  "sha256:1b1e484a637683e9579e89f442dfe57092141da028897d43f33a97ef5ae80f86"
+                       "reference":  "cinelab-student/cinelab-api:f59627b3a2394b99b0e3075379802f60",
+                       "id":  "sha256:3b56ad676c914904deb3eb24d17d521f05dd616b48a2c9f9955b4b89dd8d87d2"
                    },
                    {
                        "service":  "web",
-                       "reference":  "cinelab-student/cinelab-web:cfc2b7a786fc4ce6abcde4633c9c09a7",
-                       "id":  "sha256:16c3f904f8db8786367d58e93d83a90f801e9d9c29a01cea3e82b9f3d68aa375"
+                       "reference":  "cinelab-student/cinelab-web:a73ed8d5be554fbbb6d438971c0c962f",
+                       "id":  "sha256:4d88b5eb29267feb925fb3330acb74967008593c341d9e919041bb93d30005da"
                    }
                ]
 }

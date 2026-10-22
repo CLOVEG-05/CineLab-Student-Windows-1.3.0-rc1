@@ -83,6 +83,10 @@ watch(() => props.endpoint, load, { immediate: true })
               <span class="rec-rank">#{{ item.rank }}</span>
               <RouterLink class="rec-title text-link" :to="`/movies/${item.movie_id}`">{{ movieTitle(String(item.movie_id)) }}</RouterLink>
               <div class="rec-genres"><span v-for="g in movieGenres(String(item.movie_id))" :key="g" class="genre-chip">{{ g }}</span></div>
+              <div class="rec-sources" v-if="item.recall_sources && item.recall_sources.length">
+                <span class="source-label">融合来源</span>
+                <span v-for="s in item.recall_sources" :key="s" class="source-chip">{{ s }}<template v-if="item.recall_ranks"> #{{ item.recall_ranks[s] }}</template></span>
+              </div>
             </div>
             <div class="rec-score" v-if="item.score !== null">模型分数 {{ item.score }}</div>
           </li>
@@ -102,5 +106,8 @@ watch(() => props.endpoint, load, { immediate: true })
 .rec-title { font-size: 15px; font-weight: 600; }
 .rec-genres { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
 .genre-chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(193,18,31,0.15); color: #e0a3a8; border: 1px solid rgba(193,18,31,0.35); }
+.rec-sources { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.source-label { font-size: 11px; color: var(--text-dim, #9aa0a6); }
+.source-chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: rgba(64,120,242,0.16); color: #a9c4ff; border: 1px solid rgba(64,120,242,0.45); }
 .rec-score { flex: 0 0 auto; font-size: 13px; color: var(--text-dim, #9aa0a6); white-space: nowrap; }
 </style>

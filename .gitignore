@@ -4,6 +4,9 @@ data/packages/
 deployment/offline/
 offline-images/
 
+# ---- 离线评价生成产物（可由 evaluate.py 复现，体积大） ----
+recommender/student/eval_results/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]

@@ -5,8 +5,8 @@
     "images":  [
                    {
                        "service":  "api",
-                       "reference":  "cinelab-student/cinelab-api:f6b5c750fed0455f8495db2ffcba083b",
-                       "id":  "sha256:6d9b4bdcabf121f911c585b91caba22550d59940209a39e2f7c08b3f9f739aaa"
+                       "reference":  "cinelab-student/cinelab-api:4b53159e58a3435899a186063a36871b",
+                       "id":  "sha256:a249df78186d4c644df662cdf82aeda8b24686157fe64f4d45f8806f0490b0d4"
                    },
                    {
                        "service":  "web",

@@ -15,22 +15,19 @@ from recommender.contracts import (
     RecommendationRequest,
     RecommendationResult,
 )
-from recommender.student.manifest_util import build_manifest
+from recommender.student.manifest_util import make_manifests
 from recommender.student.popular import build_result, popular_ranking
 import recommender.business as business
 
 MODEL_VERSION = "cold-start-popular-v1"
 
-MODEL_MANIFEST_PATH = build_manifest(
-    "cold_start",
-    MODEL_VERSION,
-    "cold-start-strategy.json",
-    {"strategy": "popular-fallback",
-     "description": "zero-signal users fall back to global popular ranking",
-     "inputs": ["history_ratings(movie_id,rating)"]},
-    {"strategy": "popular-fallback", "exclude_rated": True,
-     "tie_break": "movie_id-asc", "max_results": 10},
-)
+_COLD_ARTIFACT = {"strategy": "popular-fallback",
+                  "description": "zero-signal users fall back to global popular ranking",
+                  "inputs": ["history_ratings(movie_id,rating)"]}
+_COLD_PARAMS = {"strategy": "popular-fallback", "exclude_rated": True,
+                "tie_break": "movie_id-asc", "max_results": 10}
+MODEL_MANIFEST_PATH, EVAL_MANIFEST_PATH = make_manifests(
+    "cold_start", MODEL_VERSION, "cold-start-strategy.json", _COLD_ARTIFACT, _COLD_PARAMS)
 
 
 class ColdStartRecommender:

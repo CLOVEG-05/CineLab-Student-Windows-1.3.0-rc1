@@ -15,7 +15,6 @@
 且不依赖外部预生成的文件。
 """
 import json
-import tempfile
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -34,15 +33,13 @@ from recommender.data import (
     SCHEMA,
     SPLIT,
     FrozenData,
-    sha256,
 )
+
+from recommender.student.manifest_util import make_manifests
 
 MODEL_VERSION = "content-genres-v1"
 POSITIVE_THRESHOLD = 4.0
 
-# 运行时生成模型清单与工件的目录（可写，避免依赖随镜像发布的 .json）。
-_MODEL_DIR = Path(tempfile.gettempdir()) / "cine_content_model"
-_MODEL_MANIFEST_PATH = _MODEL_DIR / "model_manifest.json"
 _ARTIFACT_NAME = "content-features.json"
 
 
@@ -57,50 +54,20 @@ def _genre_vocabulary() -> list[str]:
     return sorted(vocab)
 
 
-def _ensure_model_artifacts() -> Path:
-    """生成 content-features.json 与 model_manifest.json，满足 check_model 契约。"""
-    _MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    artifact = {"feature": "genres-multi-hot", "genre_vocabulary": _genre_vocabulary()}
-    artifact_bytes = json.dumps(artifact, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    (_MODEL_DIR / _ARTIFACT_NAME).write_bytes(artifact_bytes)
-    digest = sha256(_MODEL_DIR / _ARTIFACT_NAME)
-
-    data = FrozenData()
-    files = data.manifest["files"]
-    manifest = {
-        "algorithm": "content",
-        "model_version": MODEL_VERSION,
-        "runtime_mode": "business",
-        "dataset_version": DATASET,
-        "split_version": SPLIT,
-        "schema_version": SCHEMA,
-        "manifest_sha256": MANIFEST_SHA,
-        "training_files": {
-            "business/history_ratings.csv": files["business/history_ratings.csv"]["sha256"]
-        },
-        "feature_files": {
-            "movies.csv": files["movies.csv"]["sha256"],
-            "training-catalog.csv": files["training-catalog.csv"]["sha256"],
-        },
-        "artifacts": {_ARTIFACT_NAME: digest},
-        "parameters": {
-            "feature": "genres-multi-hot",
-            "similarity": "cosine",
-            "positive_rating_threshold": 4.0,
-            "aggregation": "sum-over-positive-movies",
-            "exclude_rated": True,
-            "max_results": 10,
-        },
-        "tool_versions": {"python": "3.11", "recommender": SCHEMA},
-    }
-    _MODEL_MANIFEST_PATH.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    return _MODEL_MANIFEST_PATH
+def _content_artifact() -> dict:
+    return {"feature": "genres-multi-hot", "genre_vocabulary": _genre_vocabulary()}
 
 
-# 导入本模块即生成清单与工件，供 check_model 读取。
-_ensure_model_artifacts()
+_CONTENT_PARAMS = {
+    "feature": "genres-multi-hot",
+    "similarity": "cosine",
+    "positive_rating_threshold": 4.0,
+    "aggregation": "sum-over-positive-movies",
+    "exclude_rated": True,
+    "max_results": 10,
+}
+MODEL_MANIFEST_PATH, EVAL_MANIFEST_PATH = make_manifests(
+    "content", MODEL_VERSION, _ARTIFACT_NAME, _content_artifact(), _CONTENT_PARAMS)
 
 
 @lru_cache(maxsize=1)
@@ -154,7 +121,9 @@ def content_scores(positive_ids: frozenset[str], rated_ids: frozenset[str],
 def build_recommendation(request: RecommendationRequest, positive_ids: frozenset[str],
                          rated_ids: frozenset[str], genre_index: dict[str, frozenset[str]],
                          catalog: frozenset[str]) -> RecommendationResult:
-    scores = content_scores(positive_ids, rated_ids, genre_index, catalog)
+    scores = {movie: round(value, 6) for movie, value in content_scores(
+        positive_ids, rated_ids, genre_index, catalog).items()}
+    # 先舍入再排序：保证"同分按 movie_id 升序"的契约校验稳定成立。
     ranked = sorted(scores.items(), key=lambda kv: (-kv[1], int(kv[0])))
     items = [
         RecommendationItem(
@@ -179,7 +148,7 @@ def build_recommendation(request: RecommendationRequest, positive_ids: frozenset
 
 
 class ContentRecommender:
-    model_manifest_path = str(_MODEL_MANIFEST_PATH)
+    model_manifest_path = str(MODEL_MANIFEST_PATH)
 
     def recommend(self, request: RecommendationRequest) -> RecommendationResult:
         catalog = _catalog()

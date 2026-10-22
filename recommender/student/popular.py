@@ -18,21 +18,19 @@ from recommender.contracts import (
     RecommendationResult,
 )
 from recommender.data import FrozenData
-from recommender.student.manifest_util import build_manifest
+from recommender.student.manifest_util import make_manifests
 from recommender.student import ratings
+import recommender.business as business
 
 MODEL_VERSION = "popular-bayesian-v1"
 MIN_VOTES = 50
 
-MODEL_MANIFEST_PATH = build_manifest(
-    "popular",
-    MODEL_VERSION,
-    "popular-params.json",
-    {"strategy": "imdb-weighted-rating", "min_votes_prior": MIN_VOTES,
-     "inputs": ["history_ratings(movie_id,rating)"]},
-    {"ranking": "weighted-rating", "min_votes_prior": MIN_VOTES,
-     "tie_break": "movie_id-asc", "max_results": 10},
-)
+_ARTIFACT = {"strategy": "imdb-weighted-rating", "min_votes_prior": MIN_VOTES,
+             "inputs": ["history_ratings(movie_id,rating)"]}
+_PARAMS = {"ranking": "weighted-rating", "min_votes_prior": MIN_VOTES,
+           "tie_break": "movie_id-asc", "max_results": 10}
+MODEL_MANIFEST_PATH, EVAL_MANIFEST_PATH = make_manifests(
+    "popular", MODEL_VERSION, "popular-params.json", _ARTIFACT, _PARAMS)
 
 
 def _catalog() -> frozenset[str]:
@@ -84,7 +82,10 @@ class PopularRecommender:
     model_manifest_path = str(MODEL_MANIFEST_PATH)
 
     def recommend(self, request: RecommendationRequest) -> RecommendationResult:
-        return build_result(request, popular_ranking(), frozenset(),
+        history = business.read_history(request)
+        rated_ids = frozenset(fb.movie_id for fb in history.ratings)
+        # 排除用户已评分电影（线上避免重复推荐；离线满足候选排除协议）。
+        return build_result(request, popular_ranking(), rated_ids,
                             Algorithm.popular, MODEL_VERSION)
 
 

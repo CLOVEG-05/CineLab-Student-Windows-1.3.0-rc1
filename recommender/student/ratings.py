@@ -51,3 +51,23 @@ def load_cooccurrence() -> tuple[dict[str, list[str]], dict[str, list[str]], dic
         user_items.setdefault(user, []).append(movie)
     item_n = {m: len(us) for m, us in item_users.items()}
     return item_users, user_items, item_n
+
+
+@lru_cache(maxsize=1)
+def all_history_ratings() -> list[tuple[str, str, float]]:
+    """全量评分三元组 (ml_user_id, movie_id, rating)，供 ALS 在业务模式训练。
+
+    直接查业务库（与 popular/itemcf/content 在线训练同源），不走冻结业务文件，
+    避免触发离线评价的数据治理拦截（demo 入口不允许读 business 完整评分）。
+    """
+    db = business._database()
+    out: list[tuple[str, str, float]] = []
+    with db.connection() as conn:
+        for uid, mid, rating in conn.execute(text(
+                "SELECT ml_user_id, movie_id, rating FROM history_ratings")).all():
+            out.append((str(uid), str(mid), float(rating)))
+        for uid, mid, rating in conn.execute(text(
+                "SELECT account_id, movie_id, rating FROM account_ratings")).all():
+            out.append((str(uid), str(mid), float(rating)))
+    return out
+

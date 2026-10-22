@@ -4,18 +4,59 @@ import { Connection } from '@element-plus/icons-vue'
 import http, { ApiError } from '../api'
 import StatePanel from './StatePanel.vue'
 import type { AlgorithmResult } from '../types'
+
+interface MovieMeta {
+  movielens_title?: string
+  title_zh?: string
+  genres?: string[]
+  poster_path?: string | null
+  release_year?: number | string
+}
+
 const props = withDefaults(defineProps<{ endpoint: string | null; label: string; emptySubject?: string }>(), { emptySubject: '登录后体验' })
 const loading = ref(false), error = ref<unknown>(null), unavailable = ref(false)
 const result = ref<AlgorithmResult | null>(null)
+const movieMap = ref<Record<string, MovieMeta>>({})
 let run = 0
 onScopeDispose(() => { run++ })
+
+function movieTitle(id: string): string {
+  const m = movieMap.value[id]
+  if (!m) return '电影 #' + id
+  return m.movielens_title || m.title_zh || ('电影 #' + id)
+}
+function movieGenres(id: string): string[] {
+  return movieMap.value[id]?.genres || []
+}
+function moviePoster(id: string): string | null {
+  const p = movieMap.value[id]?.poster_path
+  return p ? 'https://image.tmdb.org/t/p/w92' + p : null
+}
+
+async function loadMovieMeta(ids: string[]) {
+  const map: Record<string, MovieMeta> = {}
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const r = await http.get<MovieMeta>(`/movies/${id}`)
+      map[id] = r.data
+    } catch { /* 单部缺失不影响其余展示 */ }
+  }))
+  if (Object.keys(map).length) movieMap.value = map
+}
+
 async function load() {
   const seq = ++run
-  error.value = null; result.value = null; unavailable.value = false; loading.value = false
+  error.value = null; result.value = null; unavailable.value = false; loading.value = false; movieMap.value = {}
   if (!props.endpoint) return
   loading.value = true
-  try { const response = await http.get<AlgorithmResult>(props.endpoint); if (seq === run) result.value = response.data }
-  catch (e) {
+  try {
+    const response = await http.get<AlgorithmResult>(props.endpoint)
+    if (seq !== run) return
+    result.value = response.data
+    if (response.data.items?.length) {
+      loadMovieMeta(response.data.items.map((i) => String(i.movie_id)))
+    }
+  } catch (e) {
     if (seq !== run) return
     if (e instanceof ApiError && e.status === 501 && e.code === 'ALGORITHM_NOT_IMPLEMENTED') unavailable.value = true
     else error.value = e
@@ -32,7 +73,34 @@ watch(() => props.endpoint, load, { immediate: true })
         <div><span class="status-pill">{{ !endpoint ? emptySubject : '尚未实现' }}</span><h3>{{ !endpoint ? '选择观众，开始探索' : '下一部好电影，等待算法发现' }}</h3><p>{{ !endpoint ? '先选择历史用户或登录注册账号。推荐功能等待算法接入。' : '等待算法接入；当前没有模型版本或推荐结果。' }}</p></div>
         <RouterLink v-if="!endpoint && emptySubject === '登录后体验'" class="text-link" to="/login">前往登录 →</RouterLink>
       </div>
-      <div v-else-if="result" class="recommendation-results"><p>模型版本 {{ result.model_version }} · {{ result.dataset_version }}</p><p v-if="!result.items.length">本次没有推荐结果。</p><ol v-else><li v-for="item in result.items" :key="item.movie_id"><RouterLink :to="`/movies/${item.movie_id}`">电影 #{{ item.movie_id }}</RouterLink> · 排名 {{ item.rank }}<span v-if="item.score !== null"> · 模型分数 {{ item.score }}</span></li></ol></div>
+      <div v-else-if="result" class="recommendation-results">
+        <p class="meta-line">模型版本 {{ result.model_version }} · 数据集 {{ result.dataset_version }}</p>
+        <p v-if="!result.items.length">本次没有推荐结果。</p>
+        <ol v-else class="rec-list">
+          <li v-for="item in result.items" :key="item.movie_id">
+            <img v-if="moviePoster(String(item.movie_id))" class="rec-poster" :src="moviePoster(String(item.movie_id))!" :alt="movieTitle(String(item.movie_id))" />
+            <div class="rec-main">
+              <span class="rec-rank">#{{ item.rank }}</span>
+              <RouterLink class="rec-title text-link" :to="`/movies/${item.movie_id}`">{{ movieTitle(String(item.movie_id)) }}</RouterLink>
+              <div class="rec-genres"><span v-for="g in movieGenres(String(item.movie_id))" :key="g" class="genre-chip">{{ g }}</span></div>
+            </div>
+            <div class="rec-score" v-if="item.score !== null">模型分数 {{ item.score }}</div>
+          </li>
+        </ol>
+      </div>
     </StatePanel>
   </section>
 </template>
+
+<style scoped>
+.recommendation-results .meta-line { color: var(--text-dim, #9aa0a6); font-size: 13px; margin-bottom: 10px; }
+.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rec-list li { display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border, #2a2a2a); border-radius: 10px; background: rgba(255,255,255,0.02); }
+.rec-poster { width: 38px; height: 57px; object-fit: cover; border-radius: 4px; background: #1a1a1a; flex: 0 0 auto; }
+.rec-main { flex: 1 1 auto; min-width: 0; }
+.rec-rank { font-weight: 700; color: var(--accent, #c1121f); margin-right: 6px; }
+.rec-title { font-size: 15px; font-weight: 600; }
+.rec-genres { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.genre-chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: rgba(193,18,31,0.15); color: #e0a3a8; border: 1px solid rgba(193,18,31,0.35); }
+.rec-score { flex: 0 0 auto; font-size: 13px; color: var(--text-dim, #9aa0a6); white-space: nowrap; }
+</style>

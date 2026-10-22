@@ -10,8 +10,8 @@
                    },
                    {
                        "service":  "web",
-                       "reference":  "cinelab-student/cinelab-web:823d1fe5d61d4413ba33ef78d2ed26f1",
-                       "id":  "sha256:ff1b3752b59db3fd3f465cf1538f826a19b13924a53c6589d623b2edf737f78c"
+                       "reference":  "cinelab-student/cinelab-web:cfc2b7a786fc4ce6abcde4633c9c09a7",
+                       "id":  "sha256:16c3f904f8db8786367d58e93d83a90f801e9d9c29a01cea3e82b9f3d68aa375"
                    }
                ]
 }

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { Connection } from '@element-plus/icons-vue'
-import http, { ApiError } from '../api'
+import http, { ApiError, errorMessage, fetchExplanation } from '../api'
 import StatePanel from './StatePanel.vue'
-import type { AlgorithmResult } from '../types'
+import type { AlgorithmResult, ExplanationResult } from '../types'
 
 interface MovieMeta {
   movielens_title?: string
@@ -63,6 +63,38 @@ async function load() {
   } finally { if (seq === run) loading.value = false }
 }
 watch(() => props.endpoint, load, { immediate: true })
+
+// 实验四 S4：仅历史用户（ml）支持本地大模型推荐解释；从中解析用户与算法。
+const explainContext = computed(() => {
+  const m = (props.endpoint || '').match(/\/demo\/history-users\/(\d+)\/recommendations\/([a-z]+)/)
+  return m ? { userId: m[1], algorithm: m[2] } : null
+})
+const explainLoading = ref<Record<string, boolean>>({})
+const explainResult = ref<Record<string, ExplanationResult>>({})
+const explainError = ref<Record<string, string>>({})
+
+async function onExplain(movieId: string) {
+  const ctx = explainContext.value
+  if (!ctx || explainLoading.value[movieId]) return
+  explainLoading.value = { ...explainLoading.value, [movieId]: true }
+  explainError.value = { ...explainError.value, [movieId]: '' }
+  try {
+    const data = await fetchExplanation(ctx.userId, ctx.algorithm, movieId)
+    explainResult.value = { ...explainResult.value, [movieId]: data }
+  } catch (e) {
+    explainError.value = { ...explainError.value, [movieId]: errorMessage(e) }
+  } finally {
+    explainLoading.value = { ...explainLoading.value, [movieId]: false }
+  }
+}
+
+function explainBasis(facts: ExplanationResult['facts']): string {
+  const top = facts.history.slice(0, 3).map((h: { title: string; rating: number }) => `《${h.title}》${h.rating.toFixed(1)}分`).join('、')
+  const src = facts.recall_sources.length
+    ? '；rrf 来源 ' + facts.recall_sources.map((s: string) => `${s}#${facts.recall_ranks[s] ?? '?'}`).join('、')
+    : ''
+  return `依据：你真实评分 ${top}${src}`
+}
 </script>
 <template>
   <section class="algorithm-panel" :aria-label="label">
@@ -87,6 +119,18 @@ watch(() => props.endpoint, load, { immediate: true })
                 <span class="source-label">融合来源</span>
                 <span v-for="s in item.recall_sources" :key="s" class="source-chip">{{ s }}<template v-if="item.recall_ranks"> #{{ item.recall_ranks[s] }}</template></span>
               </div>
+              <div class="rec-explain" v-if="explainContext">
+                <el-button size="small" type="primary" plain :loading="explainLoading[String(item.movie_id)]"
+                           @click="onExplain(String(item.movie_id))">AI 解释</el-button>
+                <p v-if="explainError[String(item.movie_id)]" class="explain-err">{{ explainError[String(item.movie_id)] }}</p>
+                <template v-if="explainResult[String(item.movie_id)]">
+                  <p class="explain-text">{{ explainResult[String(item.movie_id)].explanation }}</p>
+                  <p class="explain-basis">{{ explainBasis(explainResult[String(item.movie_id)].facts) }}</p>
+                  <span class="explain-verify" :class="explainResult[String(item.movie_id)].verified ? 'ok' : 'warn'">
+                    大模型:{{ explainResult[String(item.movie_id)].model }} · {{ explainResult[String(item.movie_id)].verified ? '已核验（理由均出自真实评分与算法依据）' : '注意：解释含事实外引用，请核对' }}
+                  </span>
+                </template>
+              </div>
             </div>
             <div class="rec-score" v-if="item.score !== null">模型分数 {{ item.score }}</div>
           </li>
@@ -110,4 +154,11 @@ watch(() => props.endpoint, load, { immediate: true })
 .source-label { font-size: 11px; color: var(--text-dim, #9aa0a6); }
 .source-chip { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: rgba(64,120,242,0.16); color: #a9c4ff; border: 1px solid rgba(64,120,242,0.45); }
 .rec-score { flex: 0 0 auto; font-size: 13px; color: var(--text-dim, #9aa0a6); white-space: nowrap; }
+.rec-explain { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.explain-err { color: #e0a3a8; font-size: 12px; margin: 0; }
+.explain-text { margin: 0; font-size: 13px; line-height: 1.6; color: #e8eaed; }
+.explain-basis { margin: 0; font-size: 12px; color: var(--text-dim, #9aa0a6); }
+.explain-verify { font-size: 11px; }
+.explain-verify.ok { color: #79c0a0; }
+.explain-verify.warn { color: #e7b87a; }
 </style>

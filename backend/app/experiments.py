@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request
@@ -6,6 +7,7 @@ from sqlalchemy import text
 
 from recommender.contracts import Algorithm, AlgorithmNotImplemented, RecommendationRequest, RecommendationResult, PROVIDERS, recommend
 from recommender.data import ContractError
+from recommender.student import llm_explain
 from .config import DATASET, SPLIT
 from .errors import APIError
 from .schemas import IdPath, Input, identifier
@@ -16,6 +18,10 @@ router = APIRouter(tags=["学生算法预留边界"])
 
 class RecommendationQuery(Input):
     limit: int = Field(default=10, ge=1, le=50)
+
+
+class ExplanationQuery(Input):
+    movie_id: str
 
 
 def invoke(algorithm: Algorithm, kind: str, uid: int, limit: int):
@@ -56,3 +62,22 @@ def history_recommendations(ml_user_id: IdPath, algorithm: Algorithm, request: R
         if conn.execute(text("SELECT ml_user_id FROM history_users WHERE ml_user_id=:id"), {"id": uid}).first() is None:
             raise APIError(404, "HISTORY_USER_NOT_FOUND", "历史匿名用户不存在")
     return invoke(algorithm, "ml", uid, query.limit)
+
+
+@router.get("/demo/history-users/{ml_user_id}/recommendations/{algorithm}/explain")
+def explain_recommendation(ml_user_id: IdPath, algorithm: Algorithm, request: Request,
+                           query: Annotated[ExplanationQuery, Query()]):
+    """实验四 S4：大模型个性化推荐解释（基于真实评分历史与算法依据，可核验）。"""
+    uid = identifier(ml_user_id)
+    mid = identifier(query.movie_id)
+    try:
+        return llm_explain.explain(uid, mid, algorithm.value)
+    except KeyError:
+        raise APIError(404, "MOVIE_NOT_FOUND", "电影不存在") from None
+    except ContractError as exc:
+        raise APIError(503 if exc.code in {"MODEL_BINDING_INVALID", "DATA_IDENTITY_INVALID", "DATA_MODE_INVALID"} else 500,
+            exc.code, str(exc)) from None
+    except Exception as exc:
+        logging.getLogger("uvicorn.error").exception("explain failed: %s", exc)
+        raise APIError(503, "LLM_UNAVAILABLE",
+                       f"解释生成失败（{type(exc).__name__}: {exc}）；请确认本地大模型 API 已启动") from None

@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios'
+import type { ExplanationResult } from './types'
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string,
@@ -49,11 +50,18 @@ export function errorMessage(error: unknown): string {
   if (error.status === 401) return error.code === 'INVALID_CREDENTIALS' ? '登录名或密码错误' : '请登录后继续；原会话可能已失效'
   if (error.status === 403) return error.code === 'CSRF_REJECTED' ? '安全校验已过期或会话已变化，请更新安全凭据后重试' : '请求来源或权限校验未通过，请检查访问地址'
   if (error.status === 409) return '这个登录名已被使用，请换一个'
-  if (error.status === 422) return '输入格式不正确，请检查字段、评分范围或访问地址'
+  if (error.status === 422) return '输入格式不正确的是，请检查字段、评分范围或访问地址'
   if (error.status === 429) return `登录尝试过于频繁，请在 ${error.retryAfter || 60} 秒后重试`
   if (error.status === 501) return '尚未实现，等待算法接入'
-  if (error.status === 503) return '服务尚未就绪，请稍后重试或联系教师检查后端'
+  if (error.status === 503) return error.code === 'LLM_UNAVAILABLE' ? '无法连接本地大模型服务，请确认 LM Studio 已加载模型并启动 API 服务' : '服务尚未就绪，请稍后重试或联系教师检查后端'
   return error.message
+}
+
+// 实验四 S4：大模型个性化推荐解释（本地大模型推理较慢，单独放宽超时）。
+export async function fetchExplanation(userId: string, algorithm: string, movieId: string): Promise<ExplanationResult> {
+  const { data } = await http.get(`/demo/history-users/${userId}/recommendations/${algorithm}/explain`,
+    { params: { movie_id: movieId }, timeout: 120000 })
+  return data
 }
 
 export default http

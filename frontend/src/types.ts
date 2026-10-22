@@ -15,3 +15,16 @@ export interface AlgorithmResult {
   items: { movie_id: string; rank: number; algorithm: string; model_version: string; score: number | null
            recall_sources?: string[] | null; recall_ranks?: Record<string, number> | null }[]
 }
+
+export interface ExplanationResult {
+  algorithm: string; movie_id: string; model: string; llm_base_url: string
+  verified: boolean; explanation: string; generated_at: string
+  facts: {
+    target: { movie_id: string; title: string; movielens_title: string; genres: string }
+    algorithm: string; rank_in_list: number | null
+    recall_sources: string[]; recall_ranks: Record<string, number>
+    history: { movie_id: string; title: string; rating: number; genres: string }[]
+    similar_history: { title: string; rating: number }[]
+    rating_count: number
+  }
+}

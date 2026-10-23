@@ -57,10 +57,15 @@ export function errorMessage(error: unknown): string {
   return error.message
 }
 
-// 实验四 S4：大模型个性化推荐解释（本地大模型推理较慢，单独放宽超时）。
-export async function fetchExplanation(userId: string, algorithm: string, movieId: string): Promise<ExplanationResult> {
-  const { data } = await http.get(`/demo/history-users/${userId}/recommendations/${algorithm}/explain`,
-    { params: { movie_id: movieId }, timeout: 120000 })
+// 实验四 S4 / 实验五：大模型个性化推荐解释（本地大模型推理较慢，单独放宽超时）。
+// ml=推荐实验室历史用户；me=登录注册账号（评分/收藏即依据）。
+export type ExplainSubject = { kind: 'ml'; userId: string } | { kind: 'me' }
+
+export async function fetchExplanation(subject: ExplainSubject, algorithm: string, movieId: string): Promise<ExplanationResult> {
+  const path = subject.kind === 'ml'
+    ? `/demo/history-users/${subject.userId}/recommendations/${algorithm}/explain`
+    : `/me/recommendations/${algorithm}/explain`
+  const { data } = await http.get(path, { params: { movie_id: movieId }, timeout: 120000 })
   return data
 }
 

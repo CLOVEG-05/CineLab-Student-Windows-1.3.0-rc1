@@ -54,6 +54,25 @@ def my_recommendations(algorithm: Algorithm, actor: ActorDependency, query: Anno
     return invoke(algorithm, "app", actor.account_id, query.limit)
 
 
+@router.get("/me/recommendations/{algorithm}/explain")
+def explain_my_recommendation(algorithm: Algorithm, actor: ActorDependency,
+                              query: Annotated[ExplanationQuery, Query()]):
+    """实验五：注册用户的个性化推荐解释——真实评分/收藏即依据，可核验。"""
+    try:
+        return llm_explain.explain("app", actor.account_id, identifier(query.movie_id), algorithm.value)
+    except ValueError as exc:
+        raise APIError(400, "EXPLAIN_NO_BASIS", str(exc)) from None
+    except KeyError:
+        raise APIError(404, "MOVIE_NOT_FOUND", "电影不存在") from None
+    except ContractError as exc:
+        raise APIError(503 if exc.code in {"MODEL_BINDING_INVALID", "DATA_IDENTITY_INVALID", "DATA_MODE_INVALID"} else 500,
+            exc.code, str(exc)) from None
+    except Exception as exc:
+        logging.getLogger("uvicorn.error").exception("explain failed: %s", exc)
+        raise APIError(503, "LLM_UNAVAILABLE",
+                       f"解释生成失败（{type(exc).__name__}: {exc}）；请确认本地大模型 API 已启动") from None
+
+
 @router.get("/demo/history-users/{ml_user_id}/recommendations/{algorithm}", response_model=RecommendationResult)
 def history_recommendations(ml_user_id: IdPath, algorithm: Algorithm, request: Request,
                             query: Annotated[RecommendationQuery, Query()]):
@@ -71,7 +90,9 @@ def explain_recommendation(ml_user_id: IdPath, algorithm: Algorithm, request: Re
     uid = identifier(ml_user_id)
     mid = identifier(query.movie_id)
     try:
-        return llm_explain.explain(uid, mid, algorithm.value)
+        return llm_explain.explain("ml", uid, mid, algorithm.value)
+    except ValueError as exc:
+        raise APIError(400, "EXPLAIN_NO_BASIS", str(exc)) from None
     except KeyError:
         raise APIError(404, "MOVIE_NOT_FOUND", "电影不存在") from None
     except ContractError as exc:

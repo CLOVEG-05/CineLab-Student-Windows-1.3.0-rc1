@@ -64,10 +64,12 @@ async function load() {
 }
 watch(() => props.endpoint, load, { immediate: true })
 
-// 实验四 S4：仅历史用户（ml）支持本地大模型推荐解释；从中解析用户与算法。
+// 实验四 S4 + 实验五：历史用户（ml）与登录账号（me）均支持本地大模型推荐解释。
 const explainContext = computed(() => {
-  const m = (props.endpoint || '').match(/\/demo\/history-users\/(\d+)\/recommendations\/([a-z]+)/)
-  return m ? { userId: m[1], algorithm: m[2] } : null
+  const ml = (props.endpoint || '').match(/\/demo\/history-users\/(\d+)\/recommendations\/([a-z]+)/)
+  if (ml) return { kind: 'ml' as const, userId: ml[1], algorithm: ml[2] }
+  const me = (props.endpoint || '').match(/\/me\/recommendations\/([a-z]+)/)
+  return me ? { kind: 'me' as const, userId: '', algorithm: me[1] } : null
 })
 const explainLoading = ref<Record<string, boolean>>({})
 const explainResult = ref<Record<string, ExplanationResult>>({})
@@ -79,7 +81,8 @@ async function onExplain(movieId: string) {
   explainLoading.value = { ...explainLoading.value, [movieId]: true }
   explainError.value = { ...explainError.value, [movieId]: '' }
   try {
-    const data = await fetchExplanation(ctx.userId, ctx.algorithm, movieId)
+    const subject = ctx.kind === 'ml' ? { kind: 'ml' as const, userId: ctx.userId } : { kind: 'me' as const }
+    const data = await fetchExplanation(subject, ctx.algorithm, movieId)
     explainResult.value = { ...explainResult.value, [movieId]: data }
   } catch (e) {
     explainError.value = { ...explainError.value, [movieId]: errorMessage(e) }
@@ -90,10 +93,12 @@ async function onExplain(movieId: string) {
 
 function explainBasis(facts: ExplanationResult['facts']): string {
   const top = facts.history.slice(0, 3).map((h: { title: string; rating: number }) => `《${h.title}》${h.rating.toFixed(1)}分`).join('、')
+  const favs = (facts.favorites || []).slice(0, 2).map((f: { title: string }) => `收藏《${f.title}》`).join('、')
   const src = facts.recall_sources.length
     ? '；rrf 来源 ' + facts.recall_sources.map((s: string) => `${s}#${facts.recall_ranks[s] ?? '?'}`).join('、')
     : ''
-  return `依据：你真实评分 ${top}${src}`
+  const parts = [top, favs].filter(Boolean).join('、')
+  return `依据：你真实评分 ${parts || '（暂无）'}${src}`
 }
 </script>
 <template>

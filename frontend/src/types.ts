@@ -21,10 +21,11 @@ export interface ExplanationResult {
   verified: boolean; explanation: string; generated_at: string
   facts: {
     target: { movie_id: string; title: string; movielens_title: string; genres: string }
-    algorithm: string; rank_in_list: number | null
+    algorithm: string; subject_kind: string; rank_in_list: number | null
     recall_sources: string[]; recall_ranks: Record<string, number>
     history: { movie_id: string; title: string; rating: number; genres: string }[]
+    favorites?: { movie_id: string; title: string; genres: string }[]
     similar_history: { title: string; rating: number }[]
-    rating_count: number
+    rating_count: number; favorite_count?: number
   }
 }

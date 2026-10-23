@@ -40,13 +40,13 @@ async function fetchActivity() {
 async function rate() {
   if (score.value === undefined) return
   saving.value = true; activityError.value = null
-  try { const result = (await http.put<{rating:string}>(`/me/ratings/${id.value}`, { rating: score.value })).data; savedScore.value = result.rating; ElMessage.success('评分已保存') }
+  try { const result = (await http.put<{rating:string}>(`/me/ratings/${id.value}`, { rating: score.value })).data; savedScore.value = result.rating; ElMessage.success('评分已保存，你的推荐结果将据此重新计算') }
   catch (e) { activityError.value = e; ElMessage.error(errorMessage(e)) }
   finally { saving.value = false }
 }
 async function toggleFavorite() {
   saving.value = true; activityError.value = null
-  try { if (favorited.value) await http.delete(`/me/favorites/${id.value}`); else await http.put(`/me/favorites/${id.value}`); favorited.value = !favorited.value; ElMessage.success(favorited.value ? '已加入收藏' : '已取消收藏') }
+  try { if (favorited.value) await http.delete(`/me/favorites/${id.value}`); else await http.put(`/me/favorites/${id.value}`); favorited.value = !favorited.value; ElMessage.success(favorited.value ? '已加入收藏，你的推荐结果将据此重新计算' : '已取消收藏') }
   catch (e) { activityError.value = e; ElMessage.error(errorMessage(e)) }
   finally { saving.value = false }
 }
